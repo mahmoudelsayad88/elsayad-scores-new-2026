@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>Elsayad Scores - تحميل التحديثات</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: linear-gradient(135deg, #060912 0%, #111729 100%); color: #eef2ff; padding: 40px 20px; min-height: 100vh; display: flex; flex-direction: column; align-items: center; }
+  .container { max-width: 700px; width: 100%; }
+  h1 { color: #00e5a0; font-size: 2.2em; margin: 0 0 10px; text-align: center; }
+  .subtitle { text-align: center; color: #94a3c4; margin-bottom: 30px; }
+  .btn { background: linear-gradient(120deg, #00e5a0, #00b4d8, #8b5cf6); color: #04130f; border: none; padding: 20px 50px; font-size: 1.3em; font-weight: bold; border-radius: 16px; cursor: pointer; margin: 10px; box-shadow: 0 8px 24px rgba(0,229,160,0.3); transition: transform 0.2s; }
+  .btn:hover:not(:disabled) { transform: scale(1.05); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .info, .log { background: #111729; padding: 24px; border-radius: 16px; margin: 20px 0; border: 1px solid rgba(255,255,255,0.08); }
+  .info h3 { color: #00e5a0; margin: 0 0 15px; font-size: 1.2em; }
+  .info ol, .info ul { padding-right: 25px; line-height: 1.8; }
+  .info code { background: #060912; padding: 3px 8px; border-radius: 6px; font-size: 0.9em; color: #00e5a0; }
+  .info li { margin: 8px 0; }
+  .log { font-family: 'Courier New', monospace; font-size: 0.85em; max-height: 300px; overflow-y: auto; white-space: pre-wrap; }
+  .done { color: #00e5a0; }
+  .err { color: #ff3b5c; }
+  .warn { color: #ffd23f; }
+</style>
+</head>
+<body>
+  <div class="container">
+    <h1>⚽ Elsayad Scores</h1>
+    <p class="subtitle">اضغط الزر لتحميل كل ملفات التطبيق المحدّثة كـ ZIP</p>
+    <button class="btn" id="dl" onclick="downloadAll()">⬇️ تحميل ملف ZIP</button>
+
+    <div class="info">
+      <h3>📋 خطوات التحديث (بعد التحميل):</h3>
+      <ol>
+        <li>اضغط الزر واحفظ ملف <code>elsayad-update.zip</code></li>
+        <li>فكّ الضغط في مجلد مشروعك على جهازك (استبدل الملفات الموجودة)</li>
+        <li>⚠️ <strong>لا تحذف ملف <code>.env</code></strong> (فيه رابط قاعدة البيانات)</li>
+        <li>حدّث قاعدة البيانات:<br><code>DATABASE_URL="رابط-Neon" npx drizzle-kit push</code></li>
+        <li>تأكد إن كل شغل:<br><code>npm run build</code></li>
+        <li>ارفع التحديثات:<br><code>git add . && git commit -m "تحديث Elsayad" && git push</code></li>
+        <li>Vercel سينشر تلقائياً خلال دقيقة! 🎉</li>
+      </ol>
+    </div>
+
+    <div class="log" id="log">في انتظار الضغط على الزر...</div>
+  </div>
+
+<script>
+const API_URL = window.location.origin + "/api/files";
+
+const log = document.getElementById("log");
+function addLog(msg, cls = "") {
+  const d = document.createElement("div");
+  d.className = cls;
+  d.textContent = msg;
+  log.appendChild(d);
+  log.scrollTop = log.scrollHeight;
+}
+
+async function downloadAll() {
+  const btn = document.getElementById("dl");
+  btn.disabled = true;
+  btn.textContent = "⏳ جاري التحميل...";
+  log.innerHTML = "";
+
+  try {
+    addLog("📡 الاتصال بالسيرفر...", "done");
+    const res = await fetch(API_URL);
+    if (!res.ok) throw new Error("فشل الاتصال: " + res.status);
+
+    addLog("✅ تم الاتصال بنجاح", "done");
+    addLog("📦 جاري تحميل البيانات...");
+    const data = await res.json();
+    const files = data.files || {};
+    const total = Object.keys(files).length;
+
+    addLog(`✅ تم استلام ${total} ملف`, "done");
+    addLog("🗜️ جاري ضغط الملفات في ZIP...", "done");
+
+    const zip = new JSZip();
+    let i = 0;
+    for (const [path, content] of Object.entries(files)) {
+      zip.file(path, content);
+      i++;
+      if (i % 5 === 0) {
+        addLog(`   ... ${i}/${total} ملف`, "done");
+        await new Promise(r => setTimeout(r, 10));
+      }
+    }
+
+    addLog(`\\n✅ تم ضغط ${total} ملف بنجاح!`, "done");
+    addLog("💾 جاري حفظ الملف...", "done");
+
+    const blob = await zip.generateAsync({ type: "blob" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "elsayad-update.zip";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    addLog("\\n🎉 تم تحميل ملف elsayad-update.zip بنجاح!", "done");
+    addLog("\\n📋 الخطوات التالية:", "warn");
+    addLog("   1. فكّ الضغط في مجلد مشروعك", "done");
+    addLog("   2. DATABASE_URL=\\"رابطك\\" npx drizzle-kit push", "done");
+    addLog("   3. git add . && git commit -m \\"تحديث\\" && git push", "done");
+
+  } catch (err) {
+    addLog(`\\n❌ خطأ: ${err.message}`, "err");
+    addLog("تأكد إنك تفتح الصفحة من نفس رابط التطبيق", "warn");
+  }
+
+  btn.disabled = false;
+  btn.textContent = "⬇️ تحميل ZIP (مرة أخرى)";
+}
+</script>
+</body>
+</html>

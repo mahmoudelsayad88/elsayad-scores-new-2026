@@ -1,0 +1,26 @@
+{
+  "name": "Elsayad Scores",
+  "short_name": "Elsayad",
+  "description": "نتائج المباريات المباشرة، التشكيلات، الإحصائيات والأخبار لحظة بلحظة",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#060912",
+  "theme_color": "#060912",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

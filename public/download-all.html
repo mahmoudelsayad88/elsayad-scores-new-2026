@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>Elsayad Scores - تحميل التحديثات</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+  body { font-family: system-ui; background: #060912; color: #eef2ff; padding: 40px 20px; text-align: center; }
+  h1 { color: #00e5a0; font-size: 2em; }
+  .btn { background: linear-gradient(120deg, #00e5a0, #8b5cf6); color: #04130f; border: none; padding: 18px 40px; font-size: 1.2em; font-weight: bold; border-radius: 14px; cursor: pointer; margin: 10px; }
+  .btn:disabled { opacity: 0.5; }
+  .info { max-width: 700px; margin: 20px auto; text-align: right; background: #111729; padding: 20px; border-radius: 12px; }
+  .info h3 { color: #00e5a0; }
+  .info code { background: #060912; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
+  .log { max-width: 700px; margin: 20px auto; text-align: right; background: #060912; padding: 20px; border-radius: 12px; font-family: monospace; font-size: 0.85em; max-height: 300px; overflow-y: auto; }
+  .done { color: #00e5a0; }
+  .err { color: #ff3b5c; }
+</style>
+</head>
+<body>
+  <h1>⚽ Elsayad Scores - تحديث التطبيق</h1>
+  <p>اضغط الزر لتحميل ملف ZIP يحتوي كل ملفات المشروع المحدّثة</p>
+  <button class="btn" id="dl" onclick="downloadAll()">⬇️ تحميل ZIP</button>
+  <div class="info">
+    <h3>📋 خطوات التحديث:</h3>
+    <ol>
+      <li>اضغط الزر واحفظ ملف <code>elsayad-update.zip</code></li>
+      <li>فكّ الضغط في مجلد مشروعك على جهازك (استبدل الملفات الموجودة)</li>
+      <li>شغّل: <code>DATABASE_URL="رابط-Neon" npx drizzle-kit push</code></li>
+      <li>شغّل: <code>npm run build</code> للتأكد</li>
+      <li>ارفع: <code>git add . && git commit -m "تحديث" && git push</code></li>
+      <li>Vercel سينشر تلقائياً خلال دقيقة! 🎉</li>
+    </ol>
+    <h3>⚠️ مهم:</h3>
+    <ul>
+      <li>لا تحذف ملف <code>.env</code> الخاص بك (فيه رابط قاعدة البيانات)</li>
+      <li>تأكد من وجود <code>node_modules</code> (شغّل <code>npm install</code> لو لزم)</li>
+    </ul>
+  </div>
+  <div class="log" id="log"></div>
+
+<script>
+const FILES = {
+  "src/db/schema.ts": `import {
+  pgTable, serial, text, integer, jsonb, timestamp, uniqueIndex,
+} from "drizzle-orm/pg-core";
+
+export const apiCache = pgTable("api_cache", {
+  key: text("key").primaryKey(),
+  payload: jsonb("payload").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
+  email: text("email").notNull().unique(),
+  name: text("name"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const favorites = pgTable("favorites", {
+  id: serial("id").primaryKey(),
+  userEmail: text("user_email").notNull(),
+  type: text("type").notNull(),
+  entityId: integer("entity_id").notNull(),
+  name: text("name").notNull(),
+  imageVersion: integer("image_version").default(1),
+  meta: jsonb("meta"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  uniq: uniqueIndex("favorites_user_type_entity_idx").on(t.userEmail, t.type, t.entityId),
+}));
+
+export type User = typeof users.$inferSelect;
+export type Favorite = typeof favorites.$inferSelect;
+export type ApiCacheRow = typeof apiCache.$inferSelect;`,
+
+  "src/db/index.ts": `import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
+
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) throw new Error("DATABASE_URL is required");
+
+const globalForDb = globalThis as typeof globalThis & {
+  __arenaNextJsPostgresqlPool?: Pool;
+};
+
+export const pool = globalForDb.__arenaNextJsPostgresqlPool ?? new Pool({ connectionString: databaseUrl });
+
+if (process.env.NODE_ENV !== "production") {
+  globalForDb.__arenaNextJsPostgresqlPool = pool;
+}
+
+export const db = drizzle(pool);`,
+};
+
+const log = document.getElementById("log");
+function addLog(msg, cls = "") {
+  const d = document.createElement("div");
+  d.className = cls;
+  d.textContent = msg;
+  log.appendChild(d);
+  log.scrollTop = log.scrollHeight;
+}
+
+async function downloadAll() {
+  const btn = document.getElementById("dl");
+  btn.disabled = true;
+  btn.textContent = "⏳ جاري التحميل...";
+  log.innerHTML = "";
+
+  const zip = new JSZip();
+  const total = Object.keys(FILES).length;
+  let done = 0;
+
+  for (const [path, content] of Object.entries(FILES)) {
+    zip.file(path, content);
+    done++;
+    addLog(`✅ ${path} (${done}/${total})`, "done");
+    await new Promise(r => setTimeout(r, 50));
+  }
+
+  addLog("\\n🎉 جاري إنشاء ملف ZIP...");
+  const blob = await zip.generateAsync({ type: "blob" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "elsayad-update.zip";
+  a.click();
+  URL.revokeObjectURL(url);
+
+  addLog("✅ تم تحميل ملف elsayad-update.zip بنجاح!");
+  addLog("\\n📋 الآن فكّ الضغط واستبدل الملفات في مشروعك، ثم:");
+  addLog("   DATABASE_URL=\\"رابطك\\" npx drizzle-kit push");
+  addLog("   git add . && git commit -m \\"تحديث\\" && git push");
+
+  btn.disabled = false;
+  btn.textContent = "⬇️ تحميل ZIP (مرة أخرى)";
+}
+</script>
+</body>
+</html>

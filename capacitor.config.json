@@ -1,0 +1,17 @@
+{
+  "appId": "com.elsayad.scores",
+  "appName": "Elsayad Scores",
+  "webDir": "public",
+  "server": {
+    "url": "https://ضع-رابط-موقعك-هنا.vercel.app",
+    "cleartext": false,
+    "androidScheme": "https"
+  },
+  "android": {
+    "backgroundColor": "#070a14"
+  },
+  "ios": {
+    "backgroundColor": "#070a14",
+    "contentInset": "always"
+  }
+}
