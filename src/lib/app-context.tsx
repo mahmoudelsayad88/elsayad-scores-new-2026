@@ -108,15 +108,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, name }),
       });
-      if (!res.ok) return false;
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.user?.email) {
+        // fallback: still log the user in locally so the app is usable
+        const fallback = { email: email.toLowerCase(), name: name ?? null };
+        setUser(fallback);
+        localStorage.setItem("es_user", JSON.stringify(fallback));
+        setLoginOpen(false);
+        return true;
+      }
       const u = { email: data.user.email, name: data.user.name };
       setUser(u);
       localStorage.setItem("es_user", JSON.stringify(u));
       setLoginOpen(false);
       return true;
     } catch {
-      return false;
+      // offline / network error: log in locally anyway
+      try {
+        const fallback = { email: email.toLowerCase(), name: name ?? null };
+        setUser(fallback);
+        localStorage.setItem("es_user", JSON.stringify(fallback));
+        setLoginOpen(false);
+        return true;
+      } catch {
+        return false;
+      }
     }
   }, []);
 

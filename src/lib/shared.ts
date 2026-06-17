@@ -174,12 +174,19 @@ export interface StandingRow {
   points: number;
   position?: number;
   groupName?: string;
+  groupNum?: number;
+}
+
+export interface StandingGroup {
+  num: number;
+  name: string;
 }
 
 export interface StandingsResponse {
   standings: {
     competitionId: number;
     displayName?: string;
+    groups?: StandingGroup[];
     rows: StandingRow[];
   }[];
 }

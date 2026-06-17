@@ -29,11 +29,18 @@ export default function StandingsTab({
   const groups = useMemo(() => {
     const table = data?.standings?.[0];
     if (!table) return [];
+    // map groupNum -> group name (e.g. "المجموعة أ")
+    const nameByNum = new Map<number, string>();
+    (table.groups ?? []).forEach((g) => nameByNum.set(g.num, g.name));
+
     const byGroup = new Map<string, StandingRow[]>();
     for (const row of table.rows) {
-      const g = row.groupName ?? "";
-      if (!byGroup.has(g)) byGroup.set(g, []);
-      byGroup.get(g)!.push(row);
+      // prefer explicit groupName, else look up by groupNum, else single table
+      const key =
+        row.groupName ??
+        (row.groupNum != null ? nameByNum.get(row.groupNum) ?? "" : "");
+      if (!byGroup.has(key)) byGroup.set(key, []);
+      byGroup.get(key)!.push(row);
     }
     return Array.from(byGroup.entries());
   }, [data]);
@@ -74,6 +81,11 @@ export default function StandingsTab({
           {rows.map((row, i) => {
             const hl = highlight.includes(row.competitor.id);
             const pos = row.position ?? i + 1;
+            // adaptive zones: small group (<=6) -> top 2 qualify, no relegation.
+            // full league -> top 4 qualify, bottom 3 relegate.
+            const isGroup = rows.length <= 6;
+            const qualifies = isGroup ? pos <= 2 : pos <= 4;
+            const relegates = isGroup ? false : pos >= rows.length - 2;
             return (
               <Link
                 href={`/team/${row.competitor.id}`}
@@ -83,11 +95,11 @@ export default function StandingsTab({
                 }`}
               >
                 <span
-                  className={`w-6 text-center font-bold ${
-                    pos <= 4
-                      ? "text-[var(--color-brand)]"
-                      : pos >= rows.length - 2
-                        ? "text-[var(--color-live)]"
+                  className={`flex h-6 w-6 items-center justify-center rounded-md text-center font-bold ${
+                    qualifies
+                      ? "bg-[var(--color-brand)]/20 text-[var(--color-brand)]"
+                      : relegates
+                        ? "bg-[var(--color-live)]/20 text-[var(--color-live)]"
                         : "text-dim"
                   }`}
                 >
